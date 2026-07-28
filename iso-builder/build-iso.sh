@@ -193,6 +193,7 @@ configure_system() {
 HOSTS
 
     # Network - DHCP + WiFi
+    sudo mkdir -p "$rootfs/etc/netplan"
     sudo tee "$rootfs/etc/netplan/01-netcfg.yaml" > /dev/null << 'NETPLAN'
 network:
   version: 2
@@ -204,6 +205,7 @@ network:
 NETPLAN
 
     # Web OS systemd service
+    sudo mkdir -p "$rootfs/etc/systemd/system"
     sudo tee "$rootfs/etc/systemd/system/webos.service" > /dev/null << 'SERVICE'
 [Unit]
 Description=Web OS v1.0 Ultimate - Web-Based Operating System
@@ -321,6 +323,7 @@ BASHRC
     sudo chroot "$rootfs" ln -sf /usr/share/zoneinfo/UTC /etc/localtime
 
     # Create webos-config utility
+    sudo mkdir -p "$rootfs/usr/local/bin"
     sudo tee "$rootfs/usr/local/bin/webos-config" > /dev/null << 'CONF'
 #!/bin/bash
 WEBOS_DIR="/opt/web-os"
