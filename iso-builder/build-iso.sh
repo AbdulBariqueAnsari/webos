@@ -19,7 +19,24 @@ ok()    { echo -e "${GREEN}[OK]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 err()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
-cleanup() { info "Cleaning up..."; rm -rf "$WORK_DIR"; }
+unmount_virtual_fs() {
+    local rootfs="${1:-$WORK_DIR/rootfs}"
+    if [[ -d "$rootfs" ]]; then
+        sudo umount -f -l "$rootfs/dev/pts" 2>/dev/null || true
+        sudo umount -f -l "$rootfs/dev" 2>/dev/null || true
+        sudo umount -f -l "$rootfs/sys" 2>/dev/null || true
+        sudo umount -f -l "$rootfs/proc" 2>/dev/null || true
+    fi
+}
+
+cleanup() {
+    info "Cleaning up..."
+    unmount_virtual_fs "$WORK_DIR/rootfs"
+    if [[ ! -c /dev/null ]]; then
+        sudo mknod -m 666 /dev/null c 1 3 2>/dev/null || true
+    fi
+    sudo rm -rf "$WORK_DIR" 2>/dev/null || true
+}
 trap cleanup EXIT
 
 check_deps() {
@@ -48,14 +65,24 @@ create_rootfs() {
         ca-certificates,locales,sudo,wget,curl,gpg,systemd,systemd-sysv\
     " bookworm "$rootfs" http://deb.debian.org/debian
 
+    # Ensure /dev/null exists in host
+    if [[ ! -c /dev/null ]]; then
+        sudo mknod -m 666 /dev/null c 1 3 2>/dev/null || true
+    fi
+
     # Copy host DNS configuration for chroot internet access
     sudo cp -L /etc/resolv.conf "$rootfs/etc/resolv.conf" 2>/dev/null || true
 
     info "Mounting virtual filesystems in chroot..."
-    sudo mount -t proc proc "$rootfs/proc"
-    sudo mount -t sysfs sys "$rootfs/sys"
-    sudo mount --bind /dev "$rootfs/dev"
-    sudo mount --bind /dev/pts "$rootfs/dev/pts"
+    sudo mount -t proc proc "$rootfs/proc" 2>/dev/null || true
+    sudo mount -t sysfs sysfs "$rootfs/sys" 2>/dev/null || true
+    sudo mount -t devtmpfs devtmpfs "$rootfs/dev" 2>/dev/null || true
+    sudo mkdir -p "$rootfs/dev/pts"
+    sudo mount -t devpts devpts "$rootfs/dev/pts" 2>/dev/null || true
+
+    if [[ ! -c "$rootfs/dev/null" ]]; then
+        sudo mknod -m 666 "$rootfs/dev/null" c 1 3 2>/dev/null || true
+    fi
 
     info "Configuring Apt repositories..."
     sudo tee "$rootfs/etc/apt/sources.list" > /dev/null << 'SOURCES'
@@ -654,6 +681,7 @@ main() {
     configure_system "$rootfs"
     configure_display "$rootfs"
     create_plymouth_theme "$rootfs"
+    unmount_virtual_fs "$rootfs"
 
     download_memtest "$WORK_DIR"
     create_iso_image "$rootfs" "$OUTPUT_DIR/$ISO_NAME"
