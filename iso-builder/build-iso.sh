@@ -40,7 +40,7 @@ cleanup() {
 trap cleanup EXIT
 
 check_deps() {
-    local deps=("debootstrap" "grub-mkrescue" "xorriso" "mksquashfs" "cpio")
+    local deps=("debootstrap" "grub-mkrescue" "xorriso" "mksquashfs" "cpio" "mformat")
     local missing=()
     for d in "${deps[@]}"; do
         if ! command -v "$d" &>/dev/null; then
@@ -51,7 +51,7 @@ check_deps() {
         err "Missing required tools: ${missing[*]}"
         echo "  Install them:"
         echo "  sudo apt update"
-        echo "  sudo apt install -y debootstrap grub-pc-bin grub-efi-amd64-bin xorriso squashfs-tools cpio"
+        echo "  sudo apt install -y debootstrap grub-pc-bin grub-efi-amd64-bin xorriso squashfs-tools cpio mtools"
         exit 1
     fi
     ok "All build dependencies found"

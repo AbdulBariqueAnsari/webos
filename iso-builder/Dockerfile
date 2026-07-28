@@ -25,6 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     rsync \
     dosfstools \
+    mtools \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Web OS source

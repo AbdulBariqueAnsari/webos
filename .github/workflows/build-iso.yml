@@ -34,7 +34,8 @@ jobs:
             python3 \
             python3-pip \
             rsync \
-            dosfstools
+            dosfstools \
+            mtools
 
       - name: Build ISO Image
         run: |
