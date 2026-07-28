@@ -95,12 +95,13 @@ SOURCES
     sudo chroot "$rootfs" env DEBIAN_FRONTEND=noninteractive apt-get update
     sudo chroot "$rootfs" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         linux-image-amd64 grub-pc-bin grub-efi-amd64-bin grub-efi-amd64-signed \
+        live-boot live-config live-boot-initramfs-tools \
         dbus polkitd network-manager wireless-tools firmware-linux firmware-realtek firmware-iwlwifi \
         python3 python3-pip python3-venv python3-dev \
         nano vim htop iotop iftop lsof net-tools iproute2 tmux screen \
         zip unzip gzip xz-utils bzip2 dosfstools rsync ntfs-3g \
         plymouth plymouth-themes cryptsetup lvm2 parted gdisk man-db less \
-        firefox-esr xdg-utils xorg openbox chromium xserver-xorg xinit x11-utils \
+        firefox-esr xdg-utils xorg openbox chromium xserver-xorg xinit x11-utils wmctrl xdotool \
         mesa-utils fonts-dejavu-core fonts-liberation pulseaudio alsa-utils
 
     sudo mkdir -p "$rootfs/opt/web-os"
@@ -178,6 +179,13 @@ img2.save(\"/usr/share/plymouth/themes/webos/circle.png\")
     ' 2>/dev/null || true
     sudo chroot "$rootfs" plymouth-set-default-theme webos 2>/dev/null || true
     ok "Plymouth boot splash configured"
+}
+
+update_initramfs() {
+    local rootfs="$1"
+    info "Updating initramfs with live-boot and Plymouth theme..."
+    sudo chroot "$rootfs" update-initramfs -u -k all 2>&1 | tail -5 || true
+    ok "Initramfs updated"
 }
 
 configure_system() {
@@ -367,17 +375,17 @@ configure_display() {
 #!/bin/bash
 # Web OS Kiosk Desktop — Auto-starts Chromium in fullscreen
 
-# Set up display
 export DISPLAY=:0
 export XAUTHORITY=/root/.Xauthority
 
-# Wait for X server to be ready
-sleep 1
+# Disable screen blanking
+xset s off -dpms 2>/dev/null || true
+xset s noblank 2>/dev/null || true
 
-# Start Openbox window manager
-openbox --config-file /etc/xdg/openbox/rc.xml --startup /usr/share/webos/kiosk-start.sh &
+# Start background helper script
+/usr/share/webos/kiosk-start.sh &
 
-# Start Chromium in kiosk mode pointing to Web OS
+# Start Chromium kiosk in background
 chromium \
     --kiosk \
     --no-first-run \
@@ -399,6 +407,9 @@ chromium \
     --check-for-update-interval=31536000 \
     --user-data-dir=/root/.webos-chromium \
     http://localhost:8080/desktop &
+
+# Foreground window manager keeping X session alive
+exec openbox --config-file /etc/xdg/openbox/rc.xml
 XINITRC
     sudo chmod +x "$rootfs/etc/X11/xinit/xinitrc"
 
@@ -407,10 +418,9 @@ XINITRC
     sudo tee "$rootfs/usr/share/webos/kiosk-start.sh" > /dev/null << 'KIOSK'
 #!/bin/bash
 # Kiosk post-startup tweaks
-xset s off -dpms
-xset s noblank
+xset s off -dpms 2>/dev/null || true
+xset s noblank 2>/dev/null || true
 while true; do
-    # Attempt to keep Chromium focused and alive
     wmctrl -a "Web OS" 2>/dev/null || true
     sleep 30
 done
@@ -457,8 +467,7 @@ if [[ -z "$DISPLAY" && "$(tty)" =~ /dev/tty1 ]]; then
     echo "  Starting Web OS Desktop..."
     echo "  (Press Ctrl+Alt+F2 for console)"
     sleep 1
-    startx &>/dev/null &
-    exit 0
+    exec startx -- :0 vt1
 fi
 BASHPROFILE
 
@@ -684,6 +693,7 @@ main() {
     configure_system "$rootfs"
     configure_display "$rootfs"
     create_plymouth_theme "$rootfs"
+    update_initramfs "$rootfs"
     unmount_virtual_fs "$rootfs"
 
     download_memtest "$WORK_DIR"
