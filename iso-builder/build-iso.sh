@@ -44,7 +44,7 @@ create_rootfs() {
     local rootfs="$1"
     info "Creating Debian root filesystem (this will take several minutes)..."
 
-    sudo debootstrap --arch=amd64 --include="\
+    sudo debootstrap --arch=amd64 --components=main,contrib,non-free,non-free-firmware --include="\
         python3,python3-pip,python3-venv,python3-dev,\
         curl,wget,git,openssh-server,ca-certificates,\
         nano,vim,htop,iotop,iftop,lsof,net-tools,iproute2,\
@@ -62,7 +62,7 @@ create_rootfs() {
         xorg,openbox,chromium,xserver-xorg,xinit,x11-utils,\
         mesa-utils,fonts-dejavu-core,fonts-liberation,\
         pulseaudio,alsa-utils \
-    " stable "$rootfs" http://deb.debian.org/debian
+    " bookworm "$rootfs" http://deb.debian.org/debian
 
     sudo mkdir -p "$rootfs/opt/web-os"
     sudo cp -r "$WEBOS_SRC"/* "$rootfs/opt/web-os/"
