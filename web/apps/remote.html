@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remote Connectors</title>
+<style>
+  :root { --bg: #0f172a; --bg2: #1e293b; --border: #334155; --text: #f8fafc; --primary: #10b981; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 20px; height: 100vh; overflow-y: auto; }
+  h2 { margin-bottom: 16px; font-size: 1.3em; }
+  .list { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .item { padding: 12px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .item:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<h2>🌐 Remote Server Connectors</h2>
+<div class="list" id="connector-list">
+  <div style="color:#94a3b8">Loading connectors...</div>
+</div>
+
+<script>
+const token = localStorage.getItem('token') || '';
+async function loadConnectors() {
+  try {
+    const res = await fetch('/api/connectors/list', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    const container = document.getElementById('connector-list');
+    container.innerHTML = '';
+    const list = data.connectors || [];
+    if (list.length === 0) {
+      container.innerHTML = '<div style="color:#94a3b8;padding:10px">No active server connectors configured</div>';
+    } else {
+      list.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.innerHTML = `<div><strong>${c.name}</strong> (${c.type})<br><small style="color:#94a3b8">${c.url}</small></div><div>🟢 Connected</div>`;
+        container.appendChild(item);
+      });
+    }
+  } catch(e) {}
+}
+loadConnectors();
+</script>
+</body>
+</html>

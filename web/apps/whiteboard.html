@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whiteboard</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: #0a0a1a; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-family: system-ui, sans-serif; }
+  .toolbar { background: #121226; padding: 10px 16px; border-bottom: 1px solid #282846; display: flex; gap: 12px; align-items: center; }
+  .btn { padding: 6px 14px; border-radius: 6px; background: #282846; border: none; color: #fff; cursor: pointer; font-size: 0.85em; }
+  .btn:hover { background: #7c6bff; }
+  input[type="color"] { border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; background: transparent; }
+  canvas { flex: 1; cursor: crosshair; background: #0a0a1a; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <label>Color: <input type="color" id="color-picker" value="#7c6bff"></label>
+  <label>Size: <input type="range" id="size-picker" min="2" max="30" value="5"></label>
+  <button class="btn" onclick="clearCanvas()">🧹 Clear</button>
+  <button class="btn" onclick="saveBoard()">💾 Save Online</button>
+  <button class="btn" onclick="downloadImage()">📥 Export Image</button>
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight - 50;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+window.addEventListener('resize', resize);
+resize();
+
+canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); ctx.moveTo(e.clientX, e.clientY - 50); });
+canvas.addEventListener('mousemove', (e) => {
+  if (!drawing) return;
+  ctx.strokeStyle = document.getElementById('color-picker').value;
+  ctx.lineWidth = document.getElementById('size-picker').value;
+  ctx.lineTo(e.clientX, e.clientY - 50);
+  ctx.stroke();
+});
+canvas.addEventListener('mouseup', () => drawing = false);
+
+function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+function downloadImage() {
+  const link = document.createElement('a');
+  link.download = 'whiteboard.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+async function saveBoard() {
+  const data = canvas.toDataURL();
+  const token = localStorage.getItem('token') || '';
+  await fetch('/api/whiteboard/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ stroke: data })
+  });
+  alert('Whiteboard state saved!');
+}
+</script>
+</body>
+</html>

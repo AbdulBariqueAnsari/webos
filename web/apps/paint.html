@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paint</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: #1a1a2e; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-family: system-ui, sans-serif; }
+  .toolbar { background: #16213e; padding: 10px 16px; border-bottom: 1px solid #0f3460; display: flex; gap: 12px; align-items: center; }
+  .btn { padding: 6px 14px; border-radius: 6px; background: #0f3460; border: none; color: #fff; cursor: pointer; font-size: 0.85em; }
+  .btn:hover { background: #e94560; }
+  canvas { flex: 1; background: #ffffff; cursor: crosshair; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <label>Color: <input type="color" id="color" value="#000000"></label>
+  <label>Size: <input type="range" id="size" min="1" max="50" value="5"></label>
+  <button class="btn" onclick="setEraser()">🧹 Eraser</button>
+  <button class="btn" onclick="clearCanvas()">🗑️ Clear</button>
+  <button class="btn" onclick="saveImage()">💾 Export</button>
+</div>
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+
+function init() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight - 50;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = 'round';
+}
+window.addEventListener('resize', init);
+init();
+
+canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); ctx.moveTo(e.clientX, e.clientY - 50); });
+canvas.addEventListener('mousemove', (e) => {
+  if (!drawing) return;
+  ctx.strokeStyle = document.getElementById('color').value;
+  ctx.lineWidth = document.getElementById('size').value;
+  ctx.lineTo(e.clientX, e.clientY - 50);
+  ctx.stroke();
+});
+canvas.addEventListener('mouseup', () => drawing = false);
+
+function setEraser() { document.getElementById('color').value = '#ffffff'; }
+function clearCanvas() { ctx.fillRect(0, 0, canvas.width, canvas.height); }
+function saveImage() {
+  const link = document.createElement('a');
+  link.download = 'paint_drawing.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+</script>
+</body>
+</html>

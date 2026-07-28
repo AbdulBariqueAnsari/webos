@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Apps</title>
+<style>
+  :root { --bg: #0f172a; --bg2: #1e293b; --border: #334155; --text: #f8fafc; --primary: #06b6d4; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 20px; height: 100vh; display: flex; flex-direction: column; }
+  .bar { display: flex; gap: 12px; margin-bottom: 16px; }
+  input { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--border); color: var(--text); outline: none; }
+  .btn { padding: 10px 20px; border-radius: 8px; background: var(--primary); color: #000; font-weight: 700; border: none; cursor: pointer; }
+  iframe { flex: 1; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+</style>
+</head>
+<body>
+<div class="bar">
+  <input type="text" id="url-input" value="https://wikipedia.org" placeholder="Enter URL...">
+  <button class="btn" onclick="navigate()">Go</button>
+</div>
+<iframe id="web-frame" src="https://wikipedia.org" sandbox="allow-scripts allow-forms allow-same-origin"></iframe>
+
+<script>
+function navigate() {
+  let url = document.getElementById('url-input').value.trim();
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url;
+  }
+  document.getElementById('web-frame').src = url;
+}
+</script>
+</body>
+</html>

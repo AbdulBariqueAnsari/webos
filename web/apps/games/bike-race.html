@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Bike Race 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:sans-serif;color:#fff}
+#game-container{position:fixed;inset:0}
+#ui{position:fixed;top:16px;left:0;right:0;z-index:10;padding:0 20px;pointer-events:none;display:flex;justify-content:space-between;align-items:flex-start}
+#score{font-size:2em;font-weight:700;text-shadow:0 2px 10px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:8px 16px;border-radius:8px}
+#speed{font-size:1.2em;text-shadow:0 2px 10px rgba(0,0,0,0.8);background:rgba(0,0,0,0.5);padding:8px 16px;border-radius:8px;font-weight:600}
+#controls{position:fixed;bottom:20px;left:0;right:0;z-index:10;text-align:center;pointer-events:none}
+#controls span{background:rgba(0,0,0,0.6);padding:8px 20px;border-radius:8px;font-size:0.85em;color:#aaa}
+#game-over{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.8)}
+#game-over div{text-align:center}
+#game-over h1{font-size:3em;color:#ff4757;margin-bottom:12px}
+#game-over p{font-size:1.3em;color:#aaa;margin-bottom:24px}
+#game-over button{padding:14px 40px;font-size:1.1em;border:none;border-radius:8px;background:#7c6bff;color:#fff;cursor:pointer;font-weight:600}
+#game-over button:hover{background:#6b5ae8}
+#start-screen{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a2a,#1a0a3a)}
+#start-screen div{text-align:center}
+#start-screen h1{font-size:3em;background:linear-gradient(135deg,#7c6bff,#33c748);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+#start-screen p{color:#888;margin-bottom:30px;font-size:1.1em}
+#start-screen button{padding:16px 50px;font-size:1.2em;border:none;border-radius:10px;background:linear-gradient(135deg,#7c6bff,#33c748);color:#fff;cursor:pointer;font-weight:700;transition:0.3s}
+#start-screen button:hover{transform:scale(1.05);box-shadow:0 8px 30px rgba(124,107,255,0.4)}
+#score-pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:15;font-size:4em;font-weight:800;pointer-events:none;opacity:0;transition:all 0.5s}
+</style>
+</head><body>
+
+<div id="game-container"></div>
+<div id="ui">
+  <div id="score">0</div>
+  <div id="speed">0 km/h</div>
+</div>
+<div id="controls"><span>ARROW KEYS: Move &bull; SPACE: Boost &bull; Avoid traffic!</span></div>
+<div id="score-pop"></div>
+
+<div id="start-screen">
+  <div>
+    <h1>BIKE RACE 3D</h1>
+    <p>Race through traffic! Avoid cars. Survive as long as you can.</p>
+    <button onclick="startGame()">START RACE</button>
+  </div>
+</div>
+
+<div id="game-over">
+  <div>
+    <h1>GAME OVER</h1>
+    <p id="final-score">Score: 0</p>
+    <button onclick="restartGame()">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+let scene, camera, renderer, bike, ground;
+let obstacles = [];
+let score = 0, speed = 0.3, maxSpeed = 1.2, baseSpeed = 0.3;
+let gameRunning = false, gameOver = false;
+let keys = {};
+let bikeX = 0, targetX = 0;
+let roadWidth = 8;
+let obstacleTimer = 0;
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1a1a3a);
+  scene.fog = new THREE.Fog(0x1a1a3a, 30, 60);
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.set(0, 6, -8);
+  camera.lookAt(0, 0, 10);
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  document.getElementById('game-container').appendChild(renderer.domElement);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0x404080, 0.5);
+  scene.add(ambient);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(10, 20, 10);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+  const backLight = new THREE.DirectionalLight(0x4444ff, 0.3);
+  backLight.position.set(-5, 10, -10);
+  scene.add(backLight);
+
+  // Ground / Road
+  createRoad();
+
+  // Bike
+  createBike();
+
+  // Road markings
+  createRoadMarkings();
+
+  window.addEventListener('keydown', e => { keys[e.key] = true; if(e.key===' ') e.preventDefault(); });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+
+function createRoad() {
+  const roadGeo = new THREE.PlaneGeometry(roadWidth * 2, 200);
+  const roadMat = new THREE.MeshStandardMaterial({color:0x2a2a3a});
+  ground = new THREE.Mesh(roadGeo, roadMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.z = 50;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Road sides
+  const sideMat = new THREE.MeshStandardMaterial({color:0x4444aa});
+  for (let i = -1; i <= 1; i += 2) {
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 200), sideMat);
+    side.rotation.x = -Math.PI / 2;
+    side.position.set(i * roadWidth, 0.01, 50);
+    scene.add(side);
+  }
+
+  // Center line
+  const lineMat = new THREE.MeshStandardMaterial({color:0xffff88, emissive:0xffff44, emissiveIntensity:0.2});
+  for (let z = 0; z < 200; z += 4) {
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 2), lineMat);
+    line.rotation.x = -Math.PI / 2;
+    line.position.set(0, 0.02, z);
+    scene.add(line);
+  }
+}
+
+function createRoadMarkings() {
+  const markMat = new THREE.MeshStandardMaterial({color:0x6666cc, emissive:0x3333aa, emissiveIntensity:0.1});
+  for (let z = 0; z < 200; z += 6) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 2), markMat);
+    m.position.set(-roadWidth + 0.5, 0.05, z);
+    scene.add(m);
+    const m2 = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 2), markMat);
+    m2.position.set(roadWidth - 0.5, 0.05, z);
+    scene.add(m2);
+  }
+}
+
+function createBike() {
+  bike = new THREE.Group();
+
+  // Body
+  const bodyMat = new THREE.MeshStandardMaterial({color:0xff4444, emissive:0xff2222, emissiveIntensity:0.2});
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.2, 1.2), bodyMat);
+  body.position.y = 0.3;
+  bike.add(body);
+
+  // Rider
+  const riderMat = new THREE.MeshStandardMaterial({color:0x3388ff});
+  const rider = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 0.5, 8), riderMat);
+  rider.position.y = 0.7;
+  rider.position.z = -0.1;
+  bike.add(rider);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8), riderMat);
+  head.position.y = 1.0;
+  head.position.z = -0.1;
+  bike.add(head);
+
+  // Wheels
+  const wheelMat = new THREE.MeshStandardMaterial({color:0x222222});
+  const wheelGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.08, 12);
+  const w1 = new THREE.Mesh(wheelGeo, wheelMat);
+  w1.rotation.x = Math.PI/2;
+  w1.position.set(-0.25, 0.1, 0.4);
+  bike.add(w1);
+  const w2 = new THREE.Mesh(wheelGeo, wheelMat);
+  w2.rotation.x = Math.PI/2;
+  w2.position.set(0.25, 0.1, 0.4);
+  bike.add(w2);
+  const w3 = new THREE.Mesh(wheelGeo, wheelMat);
+  w3.rotation.x = Math.PI/2;
+  w3.position.set(-0.25, 0.1, -0.4);
+  bike.add(w3);
+  const w4 = new THREE.Mesh(wheelGeo, wheelMat);
+  w4.rotation.x = Math.PI/2;
+  w4.position.set(0.25, 0.1, -0.4);
+  bike.add(w4);
+
+  // Handlebar glow
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6), new THREE.MeshBasicMaterial({color:0xffff00}));
+  glow.position.set(0, 0.4, -0.5);
+  bike.add(glow);
+
+  bike.position.set(0, 0, 4);
+  bike.scale.set(0.7, 0.7, 0.7);
+  scene.add(bike);
+}
+
+function createObstacle() {
+  const types = [
+    {color:0xffaa00, w:0.8, h:0.4, d:1.6},
+    {color:0x44aaff, w:0.7, h:0.5, d:1.4},
+    {color:0xff66aa, w:0.9, h:0.35, d:1.8},
+    {color:0x66ff66, w:0.6, h:0.6, d:1.2},
+  ];
+  const t = types[Math.floor(Math.random() * types.length)];
+  const mat = new THREE.MeshStandardMaterial({color:t.color, emissive:t.color, emissiveIntensity:0.1});
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.d), mat);
+  mesh.position.x = (Math.random() - 0.5) * roadWidth * 1.5;
+  mesh.position.z = 95;
+  mesh.position.y = t.h/2;
+  mesh.castShadow = true;
+  scene.add(mesh);
+  obstacles.push({mesh, speed: 0.2 + Math.random() * 0.3, width: t.w});
+}
+
+function spawnObstacles() {
+  obstacleTimer++;
+  if (obstacleTimer > Math.max(20 - speed * 10, 5)) {
+    createObstacle();
+    if (Math.random() > 0.5) createObstacle();
+    obstacleTimer = 0;
+  }
+}
+
+function updateGame() {
+  if (!gameRunning || gameOver) return;
+
+  // Speed control
+  if (keys[' '] || keys['Shift']) speed = Math.min(speed + 0.01, maxSpeed);
+  else speed = Math.max(speed - 0.005, baseSpeed);
+
+  // Movement
+  if (keys['ArrowLeft'] || keys['a']) targetX = Math.max(targetX - 0.15, -roadWidth + 0.5);
+  if (keys['ArrowRight'] || keys['d']) targetX = Math.min(targetX + 0.15, roadWidth - 0.5);
+  if (keys['ArrowUp'] || keys['w']) speed = Math.min(speed + 0.02, maxSpeed);
+  if (keys['ArrowDown'] || keys['s']) speed = Math.max(speed - 0.03, 0.1);
+
+  bikeX += (targetX - bikeX) * 0.1;
+  bike.position.x = bikeX;
+
+  // Bike lean
+  bike.rotation.z = (targetX - bikeX) * -0.3;
+  bike.rotation.x = speed > 0.5 ? (speed - 0.5) * 0.2 : 0;
+
+  // Move obstacles
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const obs = obstacles[i];
+    obs.mesh.position.z -= speed + obs.speed;
+    obs.mesh.position.y = 0.25 + Math.sin(Date.now()/500 + obs.mesh.position.z) * 0.05;
+
+    if (obs.mesh.position.z < -5) {
+      scene.remove(obs.mesh);
+      obstacles.splice(i, 1);
+      score += 10;
+      document.getElementById('score').textContent = score;
+      continue;
+    }
+
+    // Collision
+    const dx = Math.abs(bike.position.x - obs.mesh.position.x);
+    const dz = Math.abs(4 - obs.mesh.position.z);
+    if (dx < 0.6 && dz < 0.8) {
+      gameOver = true;
+      gameRunning = false;
+      document.getElementById('final-score').textContent = 'Score: ' + score;
+      document.getElementById('game-over').style.display = 'flex';
+      showScorePop();
+      return;
+    }
+  }
+
+  // Ground scroll
+  ground.position.z -= speed;
+  if (ground.position.z < -50) ground.position.z = 50;
+
+  // Score accumulation
+  score += Math.floor(speed * 2);
+  document.getElementById('score').textContent = Math.floor(score);
+
+  // Speed display
+  const speedKmh = Math.floor(speed / maxSpeed * 280);
+  document.getElementById('speed').textContent = speedKmh + ' km/h';
+
+  // Difficulty scaling
+  baseSpeed = 0.3 + Math.floor(score / 500) * 0.05;
+  maxSpeed = 1.2 + Math.floor(score / 500) * 0.1;
+
+  spawnObstacles();
+}
+
+function showScorePop() {
+  const pop = document.getElementById('score-pop');
+  pop.textContent = Math.floor(score) + '!';
+  pop.style.opacity = '1';
+  pop.style.transform = 'translate(-50%,-50%) scale(1.5)';
+  setTimeout(() => {
+    pop.style.opacity = '0';
+    pop.style.transform = 'translate(-50%,-50%) scale(0.5)';
+  }, 800);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  updateGame();
+  renderer.render(scene, camera);
+}
+
+function startGame() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('game-over').style.display = 'none';
+  gameRunning = true;
+  gameOver = false;
+  score = 0;
+  speed = baseSpeed;
+  document.getElementById('score').textContent = '0';
+  animate();
+}
+
+function restartGame() {
+  // Clean up obstacles
+  obstacles.forEach(o => scene.remove(o.mesh));
+  obstacles = [];
+  obstacleTimer = 0;
+  targetX = 0;
+  bikeX = 0;
+  bike.position.x = 0;
+  bike.position.y = 0;
+  bike.rotation.z = 0;
+  bike.rotation.x = 0;
+  baseSpeed = 0.3;
+  maxSpeed = 1.2;
+  score = 0;
+  document.getElementById('score').textContent = '0';
+  document.getElementById('game-over').style.display = 'none';
+  startGame();
+}
+
+init();
+startGame();
+</script>
+</body></html>

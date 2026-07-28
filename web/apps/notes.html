@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notes</title>
+<style>
+  :root { --bg: #181825; --bg2: #1e1e2e; --border: #313244; --text: #cdd6f4; --primary: #f9e2af; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+  .sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .btn { padding: 8px 12px; border-radius: 6px; background: var(--primary); color: #11111b; border: none; font-weight: 600; cursor: pointer; }
+  .note-item { padding: 10px; border-radius: 6px; cursor: pointer; background: var(--bg); border: 1px solid var(--border); font-size: 0.85em; }
+  .note-item.active { border-color: var(--primary); }
+  .main { flex: 1; display: flex; flex-direction: column; padding: 16px; gap: 12px; }
+  input { padding: 10px 14px; border-radius: 6px; background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-size: 1.1em; font-weight: 600; outline: none; }
+  textarea { flex: 1; padding: 14px; border-radius: 6px; background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-size: 0.95em; outline: none; resize: none; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="sidebar">
+  <button class="btn" onclick="newNote()">📝 New Note</button>
+  <div id="notes-list" style="display:flex;flex-direction:column;gap:6px;overflow-y:auto;flex:1"></div>
+</div>
+<div class="main">
+  <input type="text" id="note-title" placeholder="Note Title...">
+  <textarea id="note-content" placeholder="Write your note here..."></textarea>
+</div>
+
+<script>
+let notes = JSON.parse(localStorage.getItem('webos_notes') || '[]');
+let activeIdx = -1;
+
+function saveNotes() {
+  localStorage.setItem('webos_notes', JSON.stringify(notes));
+  renderList();
+}
+
+function renderList() {
+  const container = document.getElementById('notes-list');
+  container.innerHTML = '';
+  notes.forEach((n, idx) => {
+    const el = document.createElement('div');
+    el.className = 'note-item' + (idx === activeIdx ? ' active' : '');
+    el.innerHTML = `<strong>${n.title || 'Untitled'}</strong><br><small style="color:#a6adc8">${n.content.substring(0,30)}...</small>`;
+    el.onclick = () => selectNote(idx);
+    container.appendChild(el);
+  });
+}
+
+function newNote() {
+  notes.unshift({ title: 'New Note', content: '', time: new Date().toISOString() });
+  activeIdx = 0;
+  saveNotes();
+  selectNote(0);
+}
+
+function selectNote(idx) {
+  activeIdx = idx;
+  const n = notes[idx];
+  if (n) {
+    document.getElementById('note-title').value = n.title;
+    document.getElementById('note-content').value = n.content;
+  }
+  renderList();
+}
+
+document.getElementById('note-title').addEventListener('input', (e) => {
+  if (activeIdx >= 0) { notes[activeIdx].title = e.target.value; saveNotes(); }
+});
+document.getElementById('note-content').addEventListener('input', (e) => {
+  if (activeIdx >= 0) { notes[activeIdx].content = e.target.value; saveNotes(); }
+});
+
+if (notes.length === 0) newNote();
+else selectNote(0);
+</script>
+</body>
+</html>

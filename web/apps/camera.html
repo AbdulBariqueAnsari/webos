@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: #000; color: #fff; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: system-ui, sans-serif; }
+  video { width: 90%; max-width: 720px; border-radius: 12px; border: 2px solid #333; background: #111; }
+  .controls { margin-top: 16px; display: flex; gap: 16px; }
+  .btn { padding: 12px 24px; border-radius: 30px; background: #7c6bff; color: #fff; border: none; font-size: 1em; font-weight: bold; cursor: pointer; }
+  .btn:hover { background: #6b5ae8; }
+</style>
+</head>
+<body>
+<video id="webcam" autoplay playsinline></video>
+<div class="controls">
+  <button class="btn" onclick="takeSnapshot()">📸 Take Photo</button>
+</div>
+
+<script>
+const video = document.getElementById('webcam');
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    video.srcObject = stream;
+  } catch(e) {
+    alert('Camera access denied or device not found');
+  }
+}
+
+function takeSnapshot() {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const a = document.createElement('a');
+  a.download = `photo_${Date.now()}.png`;
+  a.href = canvas.toDataURL();
+  a.click();
+}
+
+startCamera();
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todos & Tasks</title>
+<style>
+  :root { --bg: #0f172a; --bg2: #1e293b; --border: #334155; --text: #f8fafc; --primary: #38bdf8; --success: #4ade80; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 20px; height: 100vh; display: flex; flex-direction: column; }
+  .header { display: flex; gap: 12px; margin-bottom: 20px; }
+  input { flex: 1; padding: 10px 14px; border-radius: 8px; background: var(--bg2); border: 1px solid var(--border); color: var(--text); outline: none; }
+  .btn { padding: 10px 20px; border-radius: 8px; background: var(--primary); color: #000; font-weight: 700; border: none; cursor: pointer; }
+  .todo-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .todo-card { background: var(--bg2); border: 1px solid var(--border); padding: 14px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+  .todo-title { font-size: 0.95em; }
+  .todo-title.done { text-decoration: line-through; color: #64748b; }
+  .checkbox { width: 20px; height: 20px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="header">
+  <input type="text" id="todo-input" placeholder="Add a new task..." onkeydown="if(event.key==='Enter')addTodo()">
+  <button class="btn" onclick="addTodo()">Add Task</button>
+</div>
+<div class="todo-list" id="todo-list"></div>
+
+<script>
+const token = localStorage.getItem('token') || '';
+
+async function loadTodos() {
+  try {
+    const res = await fetch('/api/todos/list', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    const container = document.getElementById('todo-list');
+    container.innerHTML = '';
+    const todos = data.todos || [];
+    if (todos.length === 0) {
+      container.innerHTML = '<div style="color:#64748b;padding:20px;text-align:center">No tasks yet. Add one above!</div>';
+      return;
+    }
+    todos.forEach(t => {
+      const card = document.createElement('div');
+      card.className = 'todo-card';
+      const isDone = t.status === 'completed';
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px">
+          <input type="checkbox" class="checkbox" ${isDone ? 'checked' : ''} onchange="toggleTodo(${t.id}, this.checked)">
+          <span class="todo-title ${isDone ? 'done' : ''}">${t.title}</span>
+        </div>
+        <button style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:1.1em" onclick="deleteTodo(${t.id})">🗑️</button>
+      `;
+      container.appendChild(card);
+    });
+  } catch(e) {}
+}
+
+async function addTodo() {
+  const input = document.getElementById('todo-input');
+  const title = input.value.trim();
+  if (!title) return;
+  input.value = '';
+  await fetch('/api/todos/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ title })
+  });
+  loadTodos();
+}
+
+async function toggleTodo(id, completed) {
+  await fetch('/api/todos/update', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ id, status: completed ? 'completed' : 'pending' })
+  });
+  loadTodos();
+}
+
+async function deleteTodo(id) {
+  await fetch('/api/todos/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ id })
+  });
+  loadTodos();
+}
+
+loadTodos();
+</script>
+</body>
+</html>

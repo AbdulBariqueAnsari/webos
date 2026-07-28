@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Games Arcade</title>
+<style>
+  :root { --bg: #0f172a; --bg2: #1e293b; --border: #334155; --text: #f8fafc; --primary: #f59e0b; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 20px; height: 100vh; overflow-y: auto; }
+  h2 { margin-bottom: 20px; font-size: 1.4em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .game-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; }
+  .game-card:hover { transform: translateY(-4px); border-color: var(--primary); }
+  .game-icon { font-size: 3em; margin-bottom: 8px; }
+  .game-title { font-weight: bold; font-size: 1em; }
+</style>
+</head>
+<body>
+<h2>🕹️ Web OS Games Arcade</h2>
+<div class="grid">
+  <div class="game-card" onclick="location.href='games/bike-race.html'">
+    <div class="game-icon">🏎️</div>
+    <div class="game-title">Bike Race 3D</div>
+  </div>
+</div>
+</body>
+</html>

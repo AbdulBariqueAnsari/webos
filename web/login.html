@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Web OS - Login</title>
+<link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+<div class="login-container">
+  <div class="login-box">
+    <div class="logo">🌐</div>
+    <h1>Web OS</h1>
+    <p class="subtitle">Advanced Web-Based Operating System</p>
+    <form id="login-form" onsubmit="return doLogin(event)">
+      <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="username" value="admin" autofocus>
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" value="admin">
+      </div>
+      <div id="login-error" class="error hidden"></div>
+      <button type="submit" id="login-btn">Sign In</button>
+    </form>
+    <div class="footer">Web OS v2.0 — Local Server</div>
+  </div>
+</div>
+<script>
+async function doLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  btn.disabled = true; btn.textContent = 'Signing in...';
+  err.classList.add('hidden');
+  try {
+    const r = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value
+      })
+    });
+    const data = await r.json();
+    if (data.status === 'ok') {
+      localStorage.setItem('token', data.token);
+      window.location.href = '/desktop';
+    } else {
+      err.textContent = 'Invalid username or password';
+      err.classList.remove('hidden');
+    }
+  } catch(e) {
+    err.textContent = 'Connection error: ' + e.message;
+    err.classList.remove('hidden');
+  }
+  btn.disabled = false; btn.textContent = 'Sign In';
+}
+</script>
+</body>
+</html>

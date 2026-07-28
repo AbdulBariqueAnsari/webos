@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminal</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family: "Cascadia Code","Fira Code","Consolas",monospace; }
+  body { background: #0a0a14; color: #33ff66; height: 100vh; display: flex; flex-direction: column; padding: 12px; }
+  #terminal-output { flex: 1; overflow-y: auto; white-space: pre-wrap; word-break: break-all; font-size: 0.9em; line-height: 1.5; color: #a9b7c6; }
+  .prompt-line { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .prompt { color: #33ff66; font-weight: bold; font-size: 0.9em; }
+  #cmd-input { flex: 1; background: transparent; border: none; outline: none; color: #ffffff; font-size: 0.9em; font-family: inherit; }
+  .cmd-history { color: #00e5ff; }
+  .error-text { color: #ff5252; }
+</style>
+</head>
+<body>
+<div id="terminal-output">Web OS Command Terminal v2.0
+Type 'help' for built-in commands or enter system terminal commands.
+-----------------------------------------------------------------
+</div>
+<div class="prompt-line">
+  <span class="prompt">admin@webos:~$</span>
+  <input type="text" id="cmd-input" autofocus autocomplete="off" spellcheck="false">
+</div>
+
+<script>
+const output = document.getElementById('terminal-output');
+const input = document.getElementById('cmd-input');
+const token = localStorage.getItem('token') || '';
+let history = [];
+let historyIdx = -1;
+
+function printLine(text, className='') {
+  const div = document.createElement('div');
+  div.className = className;
+  div.textContent = text;
+  output.appendChild(div);
+  output.scrollTop = output.scrollHeight;
+}
+
+input.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter') {
+    const cmd = input.value.trim();
+    if (!cmd) return;
+    printLine('admin@webos:~$ ' + cmd, 'cmd-history');
+    history.push(cmd);
+    historyIdx = history.length;
+    input.value = '';
+
+    if (cmd === 'clear') {
+      output.innerHTML = '';
+      return;
+    }
+    if (cmd === 'help') {
+      printLine('Web OS Built-in Commands:');
+      printLine('  help      - Show this help menu');
+      printLine('  clear     - Clear terminal screen');
+      printLine('  stats     - View system stats');
+      printLine('  ls        - List directory files');
+      printLine('  pwd       - Print working directory');
+      printLine('  echo      - Output text');
+      return;
+    }
+    if (cmd === 'stats') {
+      try {
+        const r = await fetch('/api/system/stats', { headers: { 'Authorization': 'Bearer ' + token } });
+        const d = await r.json();
+        printLine(`Host: ${d.hostname} | Platform: ${d.platform}`);
+        printLine(`CPU: ${d.cpu.percent}% (${d.cpu.count} cores) | RAM: ${d.memory.percent}% used`);
+        printLine(`Uptime: ${Math.floor(d.uptime/60)} minutes`);
+      } catch(err) {
+        printLine('Error fetching stats: ' + err.message, 'error-text');
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/terminal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ cmd })
+      });
+      const data = await res.json();
+      if (data.stdout) printLine(data.stdout);
+      if (data.stderr) printLine(data.stderr, 'error-text');
+      if (data.error) printLine(data.error, 'error-text');
+    } catch(err) {
+      printLine('Connection error: ' + err.message, 'error-text');
+    }
+  } else if (e.key === 'ArrowUp') {
+    if (historyIdx > 0) {
+      historyIdx--;
+      input.value = history[historyIdx];
+    }
+  } else if (e.key === 'ArrowDown') {
+    if (historyIdx < history.length - 1) {
+      historyIdx++;
+      input.value = history[historyIdx];
+    } else {
+      historyIdx = history.length;
+      input.value = '';
+    }
+  }
+});
+</script>
+</body>
+</html>

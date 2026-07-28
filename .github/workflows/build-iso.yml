@@ -1,0 +1,46 @@
+name: Build Web OS Bootable ISO Online
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-iso:
+    name: Build Live Linux ISO
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install ISO Building Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            debootstrap \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            grub-efi-amd64-signed \
+            xorriso \
+            squashfs-tools \
+            cpio \
+            gzip \
+            wget \
+            ca-certificates \
+            python3 \
+            python3-pip \
+            rsync \
+            dosfstools
+
+      - name: Build ISO Image
+        run: |
+          cd iso-builder
+          sudo bash build-iso.sh
+
+      - name: Upload ISO File Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-os-1.0-x86_64-iso
+          path: dist/*.iso
+          retention-days: 7

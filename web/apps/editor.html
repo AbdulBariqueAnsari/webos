@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text Editor</title>
+<style>
+  :root {
+    --bg: #1e1e2e; --bg2: #181825; --border: #313244; --text: #cdd6f4;
+    --primary: #cba6f7; --accent: #89b4fa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+  body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+  .toolbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 16px; display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 6px 14px; border-radius: 6px; background: var(--border); border: none; color: var(--text); cursor: pointer; font-size: 0.85em; font-weight: 500; }
+  .btn:hover { background: var(--primary); color: #11111b; }
+  .filepath { flex: 1; padding: 6px 12px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: monospace; font-size: 0.85em; }
+  .editor-area { flex: 1; display: flex; overflow: hidden; }
+  textarea { flex: 1; background: var(--bg); color: #a6e3a1; border: none; outline: none; padding: 16px; font-family: "Fira Code","Consolas",monospace; font-size: 14px; line-height: 1.6; resize: none; }
+  .statusbar { background: var(--bg2); border-top: 1px solid var(--border); padding: 4px 16px; font-size: 0.75em; color: #a6adc8; display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="btn" onclick="newFile()">📄 New</button>
+  <button class="btn" onclick="openFile()">📂 Open</button>
+  <button class="btn" onclick="saveFile()">💾 Save</button>
+  <input type="text" id="filepath" class="filepath" placeholder="filename.txt (e.g. notes.txt)">
+</div>
+<div class="editor-area">
+  <textarea id="editor" placeholder="Type your text or code here..."></textarea>
+</div>
+<div class="statusbar">
+  <span id="pos-info">Ln 1, Col 1</span>
+  <span id="char-count">0 characters</span>
+</div>
+
+<script>
+const editor = document.getElementById('editor');
+const filepath = document.getElementById('filepath');
+const token = localStorage.getItem('token') || '';
+
+editor.addEventListener('input', updateStatus);
+editor.addEventListener('keyup', updateStatus);
+
+function updateStatus() {
+  const text = editor.value;
+  const lines = text.substr(0, editor.selectionStart).split('\n');
+  const lineNum = lines.length;
+  const colNum = lines[lines.length - 1].length + 1;
+  document.getElementById('pos-info').textContent = `Ln ${lineNum}, Col ${colNum}`;
+  document.getElementById('char-count').textContent = `${text.length} characters`;
+}
+
+function newFile() {
+  if (editor.value && !confirm('Discard unsaved changes?')) return;
+  editor.value = '';
+  filepath.value = '';
+  updateStatus();
+}
+
+async function openFile() {
+  const path = filepath.value.trim() || prompt('Enter file path in storage (e.g. notes.txt):');
+  if (!path) return;
+  filepath.value = path;
+  try {
+    const res = await fetch('/api/files/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ path })
+    });
+    const data = await res.json();
+    if (data.content !== undefined) {
+      editor.value = data.content;
+      updateStatus();
+    } else {
+      alert(data.error || 'Could not open file');
+    }
+  } catch(e) {
+    alert('Error loading file: ' + e.message);
+  }
+}
+
+async function saveFile() {
+  const path = filepath.value.trim();
+  if (!path) {
+    alert('Please enter a file path to save');
+    filepath.focus();
+    return;
+  }
+  try {
+    const res = await fetch('/api/files/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ path, content: editor.value })
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      alert('File saved successfully!');
+    } else {
+      alert(data.error || 'Failed to save file');
+    }
+  } catch(e) {
+    alert('Error saving file: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>

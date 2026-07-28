@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather</title>
+<style>
+  :root { --bg: #0b132b; --bg2: #1c2541; --border: #3a506b; --text: #ffffff; --accent: #6fffe9; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 20px; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .weather-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 30px; width: 100%; max-width: 380px; text-align: center; }
+  .temp { font-size: 3.5em; font-weight: bold; color: var(--accent); margin: 10px 0; }
+  .condition { font-size: 1.2em; text-transform: capitalize; color: #a5a5a5; }
+</style>
+</head>
+<body>
+<div class="weather-card">
+  <div style="font-size:4em">🌤️</div>
+  <div class="temp">26°C</div>
+  <div class="condition">Partly Cloudy</div>
+  <p style="margin-top:12px;font-size:0.9em;color:#888">Humidity: 65% | Wind: 12 km/h</p>
+</div>
+</body>
+</html>

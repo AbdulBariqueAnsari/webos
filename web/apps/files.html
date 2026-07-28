@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Files Overview</title>
+<style>
+  :root { --bg: #0f172a; --bg2: #1e293b; --border: #334155; --text: #f8fafc; --text2: #94a3b8; --primary: #38bdf8; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 20px; height: 100vh; overflow-y: auto; }
+  h2 { margin-bottom: 16px; font-size: 1.3em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--bg2); border: 1px solid var(--border); padding: 16px; border-radius: 12px; }
+  .card-title { font-size: 0.85em; color: var(--text2); margin-bottom: 8px; }
+  .card-value { font-size: 1.6em; font-weight: 700; color: var(--primary); }
+  .recent-list { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .recent-item { padding: 10px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 0.9em; }
+  .recent-item:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<h2>💾 Storage Overview</h2>
+<div class="grid">
+  <div class="card">
+    <div class="card-title">Total Files Indexed</div>
+    <div class="card-value" id="total-files">0</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Storage Used</div>
+    <div class="card-value" id="total-size">0 MB</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Recent Activity</div>
+    <div class="card-value" id="recent-count">0</div>
+  </div>
+</div>
+
+<h2>🕒 Recent Files</h2>
+<div class="recent-list" id="recent-list">
+  <div style="color:var(--text2)">Loading recent files...</div>
+</div>
+
+<script>
+const token = localStorage.getItem('token') || '';
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/files/recent', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const recent = await res.json();
+    document.getElementById('recent-count').textContent = (recent || []).length;
+    const container = document.getElementById('recent-list');
+    container.innerHTML = '';
+    if (!recent || recent.length === 0) {
+      container.innerHTML = '<div style="color:var(--text2);padding:10px">No recent files</div>';
+    } else {
+      recent.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'recent-item';
+        item.innerHTML = `<div>📄 <strong>${f.name}</strong><br><small style="color:var(--text2)">${f.path}</small></div><div>${new Date(f.time).toLocaleTimeString()}</div>`;
+        container.appendChild(item);
+      });
+    }
+  } catch(e) {}
+}
+
+loadStats();
+</script>
+</body>
+</html>

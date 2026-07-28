@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web OS v1.0</title>
+<link rel="stylesheet" href="css/desktop.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌐</text></svg>">
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-bg"></div>
+  <div class="login-box">
+    <div class="login-logo">Web OS</div>
+    <div class="login-subtitle">v1.0 Complete Edition</div>
+    <div class="login-users" id="login-users"></div>
+    <div class="login-form" id="login-form">
+      <input type="password" id="login-password" placeholder="Password" autocomplete="off">
+      <button id="login-btn" onclick="doLogin()">Sign In</button>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-hint">Click a user to sign in</div>
+  </div>
+</div>
+
+<div id="desktop" style="display:none">
+  <div id="desktop-wallpaper"></div>
+  <div id="desktop-icons"></div>
+  <div id="desktop-context-menu" class="context-menu" style="display:none"></div>
+
+  <div id="taskbar">
+    <div id="start-btn" onclick="toggleStartMenu()">
+      <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="10" fill="currentColor" opacity="0.8"/><circle cx="12" cy="12" r="4" fill="var(--bg)"/></svg>
+      <span>Start</span>
+    </div>
+    <div id="taskbar-apps"></div>
+    <div id="system-tray">
+      <div id="tray-network" class="tray-icon" title="Network">&#x1F4F6;</div>
+      <div id="tray-volume" class="tray-icon" title="Volume">&#x1F50A;</div>
+      <div id="tray-battery" class="tray-icon" title="Battery">&#x26A1;</div>
+      <div id="tray-clock" class="tray-icon" title="Clock"></div>
+    </div>
+  </div>
+
+  <div id="start-menu" style="display:none">
+    <div class="start-header">
+      <div class="start-user-avatar" id="start-user-avatar">A</div>
+      <div><strong id="start-user-name">Admin</strong><br><small>admin@webos</small></div>
+    </div>
+    <div class="start-search">
+      <input type="text" id="start-search" placeholder="Search apps..." oninput="filterStartApps(this.value)">
+    </div>
+    <div class="start-apps" id="start-apps"></div>
+    <div class="start-footer">
+      <button onclick="showShutdownMenu()" title="Power">&#x23FB;</button>
+      <button onclick="openSettings()" title="Settings">&#x2699;</button>
+      <button onclick="lockScreen()" title="Lock">&#x1F512;</button>
+    </div>
+  </div>
+
+  <div id="windows-container"></div>
+  <div id="notification-container"></div>
+</div>
+
+<script src="js/desktop.js"></script>
+<script src="js/desktop-ext.js"></script>
+</body>
+</html>

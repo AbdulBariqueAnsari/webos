@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Music Player</title>
+<style>
+  :root { --bg: #0f172a; --bg2: #1e293b; --border: #334155; --text: #f8fafc; --primary: #ec4899; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: system-ui, sans-serif; }
+  body { background: var(--bg); color: var(--text); padding: 20px; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .player-card { background: var(--bg2); border: 1px solid var(--border); padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; text-align: center; }
+  .album-art { width: 160px; height: 160px; background: linear-gradient(135deg, var(--primary), #8b5cf6); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; font-size: 4em; animation: spin 10s linear infinite paused; }
+  .album-art.playing { animation-play-state: running; }
+  @keyframes spin { 100% { transform: rotate(360deg); } }
+  audio { width: 100%; margin-top: 16px; }
+  input[type="file"] { margin-top: 16px; font-size: 0.85em; color: #94a3b8; }
+</style>
+</head>
+<body>
+<div class="player-card">
+  <div class="album-art" id="art">🎵</div>
+  <h2 id="song-title">Web OS Audio Player</h2>
+  <p id="song-artist" style="color:#94a3b8;font-size:0.9em;margin-top:4px">Select an audio file or stream</p>
+  <audio id="audio" controls></audio>
+  <br>
+  <input type="file" id="file-input" accept="audio/*">
+</div>
+
+<script>
+const audio = document.getElementById('audio');
+const art = document.getElementById('art');
+const title = document.getElementById('song-title');
+const fileInput = document.getElementById('file-input');
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    title.textContent = file.name;
+    audio.src = URL.createObjectURL(file);
+    audio.play();
+  }
+});
+
+audio.addEventListener('play', () => art.classList.add('playing'));
+audio.addEventListener('pause', () => art.classList.remove('playing'));
+</script>
+</body>
+</html>

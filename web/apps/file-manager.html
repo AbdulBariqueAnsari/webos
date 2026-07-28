@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Manager</title>
+<style>
+  :root {
+    --bg: #0f0f1a; --bg2: #1a1a2e; --bg3: #262646; --border: #32325d;
+    --primary: #7c6bff; --text: #e6e6ff; --text2: #9999cc; --danger: #ff4757;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  .toolbar { background: var(--bg2); padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+  .btn { padding: 6px 14px; border-radius: 6px; background: var(--bg3); border: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 0.85em; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+  .btn-danger { background: rgba(255,71,87,0.2); color: var(--danger); border-color: var(--danger); }
+  .btn-danger:hover { background: var(--danger); color: white; }
+  .path-bar { flex: 1; background: var(--bg); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; color: var(--text); font-size: 0.85em; font-family: monospace; }
+  .main { flex: 1; display: flex; overflow: hidden; }
+  .sidebar { width: 180px; background: var(--bg2); border-right: 1px solid var(--border); padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .nav-item { padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85em; color: var(--text2); display: flex; align-items: center; gap: 8px; transition: 0.15s; }
+  .nav-item:hover, .nav-item.active { background: var(--bg3); color: var(--text); }
+  .content { flex: 1; padding: 16px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; align-content: start; }
+  .file-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 8px; text-align: center; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .file-item:hover { transform: translateY(-2px); border-color: var(--primary); background: var(--bg3); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .file-icon { font-size: 2.2em; }
+  .file-name { font-size: 0.8em; word-break: break-all; color: var(--text); max-height: 2.4em; overflow: hidden; }
+  .file-size { font-size: 0.7em; color: var(--text2); }
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-box { background: var(--bg2); border: 1px solid var(--border); padding: 20px; border-radius: 10px; width: 400px; max-width: 90%; }
+  .modal-box h3 { margin-bottom: 12px; }
+  .modal-box input { width: 100%; padding: 8px 12px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text); margin-bottom: 12px; }
+  .status-bar { background: var(--bg2); border-top: 1px solid var(--border); padding: 4px 16px; font-size: 0.75em; color: var(--text2); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="btn" onclick="goUp()">⬆️ Up</button>
+  <button class="btn" onclick="refreshFiles()">🔄 Refresh</button>
+  <input type="text" id="current-path" class="path-bar" value="" readonly>
+  <button class="btn" onclick="showNewFolderModal()">📁 New Folder</button>
+  <button class="btn" onclick="showNewFileModal()">📝 New File</button>
+</div>
+<div class="main">
+  <div class="sidebar">
+    <div class="nav-item active" onclick="loadDirectory('')">📁 Home</div>
+    <div class="nav-item" onclick="loadDirectory('Documents')">📄 Documents</div>
+    <div class="nav-item" onclick="loadDirectory('Downloads')">📥 Downloads</div>
+    <div class="nav-item" onclick="loadDirectory('Pictures')">🖼️ Pictures</div>
+    <div class="nav-item" onclick="loadDirectory('Music')">🎵 Music</div>
+  </div>
+  <div class="content" id="file-grid"></div>
+</div>
+<div class="status-bar">
+  <span id="status-count">0 items</span>
+  <span id="status-info">Web OS File System</span>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3 id="modal-title">New Item</h3>
+    <input type="text" id="modal-input" placeholder="Name...">
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn" style="background:var(--primary)" onclick="confirmModal()">Create</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentPath = '';
+let token = localStorage.getItem('token') || '';
+
+async function loadDirectory(path) {
+  currentPath = path;
+  document.getElementById('current-path').value = '/storage/' + path;
+  const grid = document.getElementById('file-grid');
+  grid.innerHTML = '<div style="color:var(--text2)">Loading...</div>';
+  try {
+    const res = await fetch('/api/files/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ path })
+    });
+    const data = await res.json();
+    grid.innerHTML = '';
+    if (data.error) {
+      grid.innerHTML = `<div style="color:var(--danger)">${data.error}</div>`;
+      return;
+    }
+    const items = data.items || [];
+    document.getElementById('status-count').textContent = items.length + ' items';
+    if (items.length === 0) {
+      grid.innerHTML = '<div style="color:var(--text2);grid-column:1/-1;padding:20px">Folder is empty</div>';
+      return;
+    }
+    items.forEach(item => {
+      const el = document.createElement('div');
+      el.className = 'file-item';
+      const icon = item.is_dir ? '📁' : getFileIcon(item.name);
+      const sizeStr = item.is_dir ? 'Folder' : formatSize(item.size);
+      el.innerHTML = `<div class="file-icon">${icon}</div><div class="file-name" title="${item.name}">${item.name}</div><div class="file-size">${sizeStr}</div>`;
+      el.onclick = () => {
+        if (item.is_dir) {
+          loadDirectory(item.rel_path);
+        } else {
+          viewFile(item.rel_path);
+        }
+      };
+      grid.appendChild(el);
+    });
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--danger)">Error: ' + e.message + '</div>';
+  }
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['png','jpg','jpeg','gif','svg','webp'].includes(ext)) return '🖼️';
+  if (['mp3','wav','ogg','flac'].includes(ext)) return '🎵';
+  if (['mp4','webm','mkv','avi'].includes(ext)) return '🎬';
+  if (['pdf','doc','docx','txt','md'].includes(ext)) return '📄';
+  if (['js','py','html','css','json'].includes(ext)) return '💻';
+  if (['zip','tar','gz','rar','7z'].includes(ext)) return '📦';
+  return '📝';
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function goUp() {
+  if (!currentPath) return;
+  const parts = currentPath.split('/');
+  parts.pop();
+  loadDirectory(parts.join('/'));
+}
+
+function refreshFiles() { loadDirectory(currentPath); }
+
+let modalMode = '';
+function showNewFolderModal() {
+  modalMode = 'folder';
+  document.getElementById('modal-title').textContent = 'Create New Folder';
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal').style.display = 'flex';
+  document.getElementById('modal-input').focus();
+}
+
+function showNewFileModal() {
+  modalMode = 'file';
+  document.getElementById('modal-title').textContent = 'Create New File';
+  document.getElementById('modal-input').value = '';
+  document.getElementById('modal').style.display = 'flex';
+  document.getElementById('modal-input').focus();
+}
+
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+async function confirmModal() {
+  const val = document.getElementById('modal-input').value.trim();
+  if (!val) return;
+  const targetPath = currentPath ? currentPath + '/' + val : val;
+  closeModal();
+  if (modalMode === 'folder') {
+    await fetch('/api/files/mkdir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ path: targetPath })
+    });
+  } else {
+    await fetch('/api/files/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ path: targetPath, content: '' })
+    });
+  }
+  refreshFiles();
+}
+
+async function viewFile(path) {
+  const res = await fetch('/api/files/read', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ path })
+  });
+  const data = await res.json();
+  if (data.content !== undefined) {
+    alert(`[${data.name}]\n\n` + data.content.substring(0, 500) + (data.content.length > 500 ? '\n...' : ''));
+  } else {
+    alert(data.error || 'Failed to read file');
+  }
+}
+
+loadDirectory('');
+</script>
+</body>
+</html>
