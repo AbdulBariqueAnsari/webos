@@ -42,15 +42,14 @@ check_deps() {
 
 create_rootfs() {
     local rootfs="$1"
-    info "Creating Debian root filesystem (minimal base)..."
+    info "Creating Debian root filesystem (clean minimal base)..."
 
     sudo debootstrap --arch=amd64 --components=main,contrib,non-free,non-free-firmware --include="\
-        linux-image-amd64,grub-pc-bin,grub-efi-amd64-bin,grub-efi-amd64-signed,\
-        systemd,systemd-sysv,dbus,sudo,network-manager,wireless-tools,\
-        firmware-linux,firmware-realtek,firmware-iwlwifi,\
-        python3,python3-pip,python3-venv,python3-dev,\
-        curl,wget,git,ca-certificates,zip,unzip,gzip,dosfstools,rsync,ntfs-3g\
+        ca-certificates,locales,sudo,wget,curl,gpg,systemd,systemd-sysv\
     " bookworm "$rootfs" http://deb.debian.org/debian
+
+    # Copy host DNS configuration for chroot internet access
+    sudo cp -L /etc/resolv.conf "$rootfs/etc/resolv.conf" 2>/dev/null || true
 
     info "Mounting virtual filesystems in chroot..."
     sudo mount -t proc proc "$rootfs/proc"
@@ -58,12 +57,23 @@ create_rootfs() {
     sudo mount --bind /dev "$rootfs/dev"
     sudo mount --bind /dev/pts "$rootfs/dev/pts"
 
-    info "Installing GUI and desktop packages inside chroot..."
+    info "Configuring Apt repositories..."
+    sudo tee "$rootfs/etc/apt/sources.list" > /dev/null << 'SOURCES'
+deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
+SOURCES
+
+    info "Installing kernel, system, network, and GUI packages inside chroot..."
     sudo chroot "$rootfs" env DEBIAN_FRONTEND=noninteractive apt-get update
     sudo chroot "$rootfs" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        linux-image-amd64 grub-pc-bin grub-efi-amd64-bin grub-efi-amd64-signed \
+        dbus polkitd network-manager wireless-tools firmware-linux firmware-realtek firmware-iwlwifi \
+        python3 python3-pip python3-venv python3-dev \
         nano vim htop iotop iftop lsof net-tools iproute2 tmux screen \
-        xz-utils bzip2 plymouth plymouth-themes cryptsetup lvm2 parted gdisk \
-        man-db less firefox-esr xdg-utils xorg openbox chromium xserver-xorg xinit x11-utils \
+        zip unzip gzip xz-utils bzip2 dosfstools rsync ntfs-3g \
+        plymouth plymouth-themes cryptsetup lvm2 parted gdisk man-db less \
+        firefox-esr xdg-utils xorg openbox chromium xserver-xorg xinit x11-utils \
         mesa-utils fonts-dejavu-core fonts-liberation pulseaudio alsa-utils
 
     sudo mkdir -p "$rootfs/opt/web-os"
