@@ -42,27 +42,29 @@ check_deps() {
 
 create_rootfs() {
     local rootfs="$1"
-    info "Creating Debian root filesystem (this will take several minutes)..."
+    info "Creating Debian root filesystem (minimal base)..."
 
     sudo debootstrap --arch=amd64 --components=main,contrib,non-free,non-free-firmware --include="\
+        linux-image-amd64,grub-pc-bin,grub-efi-amd64-bin,grub-efi-amd64-signed,\
+        systemd,systemd-sysv,dbus,sudo,network-manager,wireless-tools,\
+        firmware-linux,firmware-realtek,firmware-iwlwifi,\
         python3,python3-pip,python3-venv,python3-dev,\
-        curl,wget,git,openssh-server,ca-certificates,\
-        nano,vim,htop,iotop,iftop,lsof,net-tools,iproute2,\
-        tmux,screen,zip,unzip,gzip,xz-utils,bzip2,\
-        network-manager,wireless-tools,firmware-linux,\
-        firmware-realtek,firmware-iwlwifi,\
-        grub-pc-bin,grub-efi-amd64-bin,grub-efi-amd64-signed,\
-        plymouth plymouth-themes,\
-        dbus,linux-image-amd64,\
-        sudo,cryptsetup,lvm2,parted,gdisk,dosfstools,\
-        rsync,ntfs-3g,\
-        man-db,less,\
-        firefox-esr,\
-        xdg-utils,\
-        xorg,openbox,chromium,xserver-xorg,xinit,x11-utils,\
-        mesa-utils,fonts-dejavu-core,fonts-liberation,\
-        pulseaudio,alsa-utils \
+        curl,wget,git,ca-certificates,zip,unzip,gzip,dosfstools,rsync,ntfs-3g\
     " bookworm "$rootfs" http://deb.debian.org/debian
+
+    info "Mounting virtual filesystems in chroot..."
+    sudo mount -t proc proc "$rootfs/proc"
+    sudo mount -t sysfs sys "$rootfs/sys"
+    sudo mount --bind /dev "$rootfs/dev"
+    sudo mount --bind /dev/pts "$rootfs/dev/pts"
+
+    info "Installing GUI and desktop packages inside chroot..."
+    sudo chroot "$rootfs" env DEBIAN_FRONTEND=noninteractive apt-get update
+    sudo chroot "$rootfs" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        nano vim htop iotop iftop lsof net-tools iproute2 tmux screen \
+        xz-utils bzip2 plymouth plymouth-themes cryptsetup lvm2 parted gdisk \
+        man-db less firefox-esr xdg-utils xorg openbox chromium xserver-xorg xinit x11-utils \
+        mesa-utils fonts-dejavu-core fonts-liberation pulseaudio alsa-utils
 
     sudo mkdir -p "$rootfs/opt/web-os"
     sudo cp -r "$WEBOS_SRC"/* "$rootfs/opt/web-os/"
@@ -578,6 +580,12 @@ create_iso_image() {
 
     info "Creating ISO structure..."
     mkdir -p "$iso_dir/live" "$iso_dir/boot/grub"
+
+    # Unmount virtual filesystems before squashfs creation
+    sudo umount -l "$rootfs/dev/pts" 2>/dev/null || true
+    sudo umount -l "$rootfs/dev" 2>/dev/null || true
+    sudo umount -l "$rootfs/sys" 2>/dev/null || true
+    sudo umount -l "$rootfs/proc" 2>/dev/null || true
 
     # Create squashfs
     info "Creating compressed filesystem (this will take several minutes)..."
