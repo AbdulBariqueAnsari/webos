@@ -267,20 +267,21 @@ BANNER
 export PS1='\[\e[1;34m\]\u@webos\[\e[0m\]:\[\e[1;33m\]\w\[\e[0m\]\$ '
 
 webos_dashboard() {
-    clear
     local ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+    local all_ips=$(hostname -I 2>/dev/null || echo "127.0.0.1")
     local cpu=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}') 
     local mem=$(free -m | awk '/Mem:/ {print $3 "MB / " $2 "MB"}')
     local disk=$(df -h / | awk 'NR==2 {print $3 " / " $2 " (" $5 ")"}')
     local webos_status=$(systemctl is-active webos.service 2>/dev/null)
     local uptime_info=$(uptime -p | sed 's/up //')
     echo ""
-    echo "  ================================================"
-    echo "      Web OS v1.0 Ultimate - System Dashboard"
-    echo "  ================================================"
+    echo "  ================================================="
+    echo "      Web OS v1.0 Ultimate — Network System Dashboard"
+    echo "  ================================================="
     echo ""
     echo "  Hostname    : $(hostname)"
-    echo "  IP Address  : ${ip:-Not connected}"
+    echo "  Primary IP  : ${ip:-Not connected}"
+    echo "  All IPs     : $all_ips"
     echo "  Kernel      : $(uname -r)"
     echo "  Uptime      : $uptime_info"
     echo "  Web OS      : ${webos_status:-unknown}"
@@ -291,19 +292,18 @@ webos_dashboard() {
     echo ""
     echo "  -------------------------------------------------"
     echo ""
-    echo "  Web UI      : http://${ip:-localhost}:8080"
-    echo "  Desktop     : http://${ip:-localhost}:8080/desktop"
+    echo "  LAN Web UI  : http://${ip:-localhost}:8080"
+    echo "  Desktop UI  : http://${ip:-localhost}:8080/desktop"
     echo "  Login       : admin / admin"
     echo ""
     echo "  Commands:"
     echo "    webos-dashboard  - Show this dashboard"
-    echo "    webos-logs       - Show Web OS logs"
-    echo "    webos-restart    - Restart Web OS"
-    echo "    nmtui            - Configure WiFi/Network"
-    echo "    htop             - Process viewer"
-    echo "    mc               - File manager (if installed)"
+    echo "    webos-logs       - Show Web OS logs (follow stream)"
+    echo "    webos-restart    - Restart Web OS services"
+    echo "    nmtui            - Configure WiFi / Network adapters"
+    echo "    htop             - Interactive Process Viewer"
     echo ""
-    echo "  ================================================"
+    echo "  ================================================="
     echo ""
 }
 alias webos-logs='journalctl -u webos -f --no-hostname'
@@ -313,12 +313,10 @@ alias la='ls -A'
 alias ..='cd ..'
 alias ip='ip -c'
 
-# Show dashboard on login
-clear
-echo "  Booting Web OS v1.0 Ultimate..."
-sleep 1
+# Show dashboard on login (preserving console history)
+echo "  [Web OS v1.0 Ultimate Live Network Server]"
 webos_dashboard
-echo "  [Press ENTER for terminal]"
+echo "  [Press ENTER for terminal command prompt]"
 BASHRC
 
     # Enable services

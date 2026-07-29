@@ -1,8 +1,11 @@
 @echo off
-title Web OS v5.0
-echo ============================================
-echo    Starting Web OS v5.0 Ultimate
-echo ============================================
+title Web OS v1.0 Ultimate
+set PYTHONUNBUFFERED=1
+set PYTHONIOENCODING=utf-8
+
+echo ==================================================
+echo    Starting Web OS v1.0 Ultimate Operating System
+echo ==================================================
 echo.
 
 REM Check Python
@@ -14,12 +17,10 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [OK] Starting servers...
-echo Open browser: http://localhost:8080
-echo Login: admin / admin
-echo Press Ctrl+C to stop
+echo [OK] Starting servers and detecting active network IPs...
 echo.
 
 python main.py
 
 pause
+

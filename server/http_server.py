@@ -176,6 +176,91 @@ def api_network_io():
     return jsonify(result)
 
 
+def get_full_network_details():
+    hostname = socket.gethostname()
+    all_ips = []
+    interfaces = []
+
+    primary_ip = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
+        s.connect(("8.8.8.8", 80))
+        primary_ip = s.getsockname()[0]
+        s.close()
+    except Exception:
+        pass
+
+    try:
+        addrs = psutil.net_if_addrs()
+        stats = psutil.net_if_stats()
+        for name, addr_list in addrs.items():
+            s = stats.get(name)
+            iface_info = {
+                "name": name,
+                "is_up": s.isup if s else False,
+                "speed": s.speed if s else 0,
+                "ips": [],
+                "mac": None
+            }
+            for a in addr_list:
+                if a.family == socket.AF_INET:
+                    iface_info["ips"].append({"ip": a.address, "netmask": a.netmask, "type": "IPv4"})
+                    if a.address not in all_ips and not a.address.startswith("127."):
+                        all_ips.append(a.address)
+                elif hasattr(socket, "AF_INET6") and a.family == socket.AF_INET6:
+                    iface_info["ips"].append({"ip": a.address, "type": "IPv6"})
+                elif hasattr(psutil, "AF_LINK") and a.family == psutil.AF_LINK:
+                    iface_info["mac"] = a.address
+            interfaces.append(iface_info)
+    except Exception:
+        pass
+
+    if primary_ip and primary_ip not in all_ips:
+        all_ips.insert(0, primary_ip)
+
+    if not all_ips:
+        all_ips.append("127.0.0.1")
+
+    main_ip = primary_ip or (all_ips[0] if all_ips else "127.0.0.1")
+
+    access_urls = {
+        "localhost": f"http://localhost:{HTTP_PORT}",
+        "primary_lan": f"http://{main_ip}:{HTTP_PORT}",
+        "hostname": f"http://{hostname}:{HTTP_PORT}",
+        "desktop": f"http://{main_ip}:{HTTP_PORT}/desktop",
+        "lan_urls": [f"http://{ip}:{HTTP_PORT}" for ip in all_ips],
+        "webdav": f"http://{main_ip}:8081",
+        "file": f"http://{main_ip}:8082",
+        "ws": f"ws://{main_ip}:8084"
+    }
+
+    net_io = {}
+    try:
+        nio = psutil.net_io_counters()
+        net_io = {"bytes_sent": nio.bytes_sent, "bytes_recv": nio.bytes_recv, "packets_sent": nio.packets_sent, "packets_recv": nio.packets_recv}
+    except Exception:
+        pass
+
+    return {
+        "hostname": hostname,
+        "primary_ip": main_ip,
+        "all_ips": all_ips,
+        "interfaces": interfaces,
+        "access_urls": access_urls,
+        "http_port": HTTP_PORT,
+        "ws_port": 8084,
+        "net_io": net_io,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.route("/api/system/network-details")
+def api_network_details():
+    return jsonify(get_full_network_details())
+
+
+
 # ─── TERMINAL ─────────────────────────────────────────────────
 @app.route("/api/terminal", methods=["POST"])
 @login_required

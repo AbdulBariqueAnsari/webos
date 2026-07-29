@@ -109,6 +109,7 @@ function initDesktopIcons() {
   const container = document.getElementById('desktop-icons');
   container.innerHTML = '';
   const icons = [
+    { icon: '\u{1F4F6}', label: 'Network & IP', app: 'network-info' },
     { icon: '\u{1F4C1}', label: 'File Manager', app: 'file-manager' },
     { icon: '\u{1F4BB}', label: 'Terminal', app: 'terminal' },
     { icon: '\u{1F4DD}', label: 'Text Editor', app: 'text-editor' },
@@ -134,6 +135,7 @@ function initDesktopIcons() {
 
 function initStartMenu() {
   const apps = [
+    { icon: '\u{1F4F6}', label: 'Network & IP Info', app: 'network-info', color: '#00b894' },
     { icon: '\u{1F4C1}', label: 'File Manager', app: 'file-manager', color: '#3498db' },
     { icon: '\u{1F4BB}', label: 'Terminal', app: 'terminal', color: '#2ecc71' },
     { icon: '\u{1F4DD}', label: 'Text Editor', app: 'text-editor', color: '#f39c12' },

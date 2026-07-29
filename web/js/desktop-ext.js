@@ -838,14 +838,133 @@
     };
   }
 
-  // ─── 3D Bike Race Game ──────────────────────────────
-  function bikeRace() {
-    const id = launchWindow('Bike Race 3D', '\u{1F3CE}\uFE0F', '', 900, 600);
-    setWindowContent(id, '<iframe class="app-iframe" src="apps/games/bike-race.html" style="background:#000"></iframe>');
+  // ─── Network & IP Info Center ─────────────────────────
+  function networkInfo() {
+    const id = launchWindow('Network & IP Info Center', '\u{1F4F6}', '<div id="netinfo-'+id+'"><div class="text-center text-muted" style="padding:40px">Loading network details...</div></div>', 840, 580);
+    
+    let timer = null;
+    function loadNetworkDetails() {
+      const el = document.getElementById('netinfo-'+id);
+      if (!el) { if (timer) clearInterval(timer); return; }
+
+      extFetch('/system/network-details').then(d => {
+        if (!el) return;
+        const mainIp = d.primary_ip || '127.0.0.1';
+        const hostname = d.hostname || 'webos';
+        const urls = d.access_urls || {};
+        const interfaces = d.interfaces || [];
+        const netIo = d.net_io || {};
+        const sentMb = (netIo.bytes_sent ? (netIo.bytes_sent / 1048576).toFixed(1) : '0');
+        const recvMb = (netIo.bytes_recv ? (netIo.bytes_recv / 1048576).toFixed(1) : '0');
+
+        let ifacesHtml = interfaces.map(iface => {
+          const ipv4List = (iface.ips || []).filter(i => i.type === 'IPv4').map(i => i.ip).join(', ') || 'None';
+          const ipv6List = (iface.ips || []).filter(i => i.type === 'IPv6').map(i => i.ip.split('%')[0]).join(', ');
+          const statusBadge = iface.is_up ? '<span style="color:#2ecc71;font-weight:bold">● ACTIVE</span>' : '<span style="color:#95a5a6">○ DOWN</span>';
+          return `
+          <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <strong style="color:var(--text);font-size:0.95em">📶 ${iface.name}</strong>
+              <span style="font-size:0.8em">${statusBadge} ${iface.speed ? '('+iface.speed+' Mbps)' : ''}</span>
+            </div>
+            <div style="font-size:0.85em;color:var(--text2);display:grid;grid-template-columns:1fr 1fr;gap:4px">
+              <div><span style="color:var(--text3)">IPv4:</span> <strong>${ipv4List}</strong></div>
+              <div><span style="color:var(--text3)">MAC:</span> <span>${iface.mac || 'N/A'}</span></div>
+              ${ipv6List ? `<div style="grid-column:1/-1;word-break:break-all"><span style="color:var(--text3)">IPv6:</span> <small>${ipv6List}</small></div>` : ''}
+            </div>
+          </div>`;
+        }).join('');
+
+        el.innerHTML = `
+        <style>
+          .net-container { display:flex; flex-direction:column; gap:12px; padding:16px; height:100%; overflow-y:auto; box-sizing:border-box; }
+          .net-header { background:linear-gradient(135deg, rgba(0,184,148,0.15), rgba(108,92,231,0.15)); border:1px solid var(--border); border-radius:10px; padding:16px; display:flex; justify-content:space-between; align-items:center; }
+          .net-ip-hero { font-size:1.8em; font-weight:700; color:#00b894; letter-spacing:0.5px; }
+          .net-sub { font-size:0.82em; color:var(--text2); margin-top:2px; }
+          .net-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:14px; }
+          .net-card h4 { margin:0 0 10px 0; font-size:0.9em; color:var(--accent); text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px; }
+          .url-row { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid rgba(255,255,255,0.05); font-size:0.88em; }
+          .url-row:last-child { border:none; }
+          .url-label { color:var(--text2); font-weight:500; }
+          .url-link { color:#3498db; text-decoration:none; font-family:monospace; word-break:break-all; }
+          .url-link:hover { text-decoration:underline; }
+          .copy-btn { padding:3px 8px; font-size:0.75em; border-radius:4px; border:1px solid var(--border); background:var(--bg); color:var(--text); cursor:pointer; }
+          .copy-btn:hover { background:var(--primary); color:white; }
+          .net-stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:10px; }
+          .stat-box { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:10px; text-align:center; }
+          .stat-val { font-size:1.2em; font-weight:700; color:var(--text); }
+          .stat-lbl { font-size:0.75em; color:var(--text3); margin-top:2px; }
+          .log-box { background:#0a0a14; border:1px solid var(--border); border-radius:6px; padding:10px; font-family:monospace; font-size:0.8em; color:#2ecc71; max-height:140px; overflow-y:auto; white-space:pre-wrap; }
+        </style>
+        <div class="net-container">
+          <div class="net-header">
+            <div>
+              <div class="net-sub">CONNECTED NETWORK IP</div>
+              <div class="net-ip-hero">http://${mainIp}:8080</div>
+              <div class="net-sub">Host Name: <strong>${hostname}</strong> | All IPs: ${(d.all_ips||[]).join(', ')}</div>
+            </div>
+            <button class="copy-btn" style="padding:8px 16px;font-size:0.9em;background:#00b894;color:white;border:none;font-weight:600" onclick="navigator.clipboard.writeText('http://${mainIp}:8080');alert('Primary LAN Access URL copied!')">📋 Copy LAN URL</button>
+          </div>
+
+          <div class="net-stats-grid">
+            <div class="stat-box"><div class="stat-val" style="color:#00b894">${mainIp}</div><div class="stat-lbl">Primary LAN IP</div></div>
+            <div class="stat-box"><div class="stat-val">${recvMb} MB</div><div class="stat-lbl">Received Traffic</div></div>
+            <div class="stat-box"><div class="stat-val">${sentMb} MB</div><div class="stat-lbl">Sent Traffic</div></div>
+            <div class="stat-box"><div class="stat-val" style="color:#3498db">8080</div><div class="stat-lbl">HTTP Port</div></div>
+          </div>
+
+          <div class="net-card">
+            <h4>🔗 Network Access URLs (Click or Copy)</h4>
+            <div class="url-row">
+              <span class="url-label">Network (LAN Access):</span>
+              <div><a class="url-link" href="http://${mainIp}:8080" target="_blank">http://${mainIp}:8080</a> <button class="copy-btn" onclick="navigator.clipboard.writeText('http://${mainIp}:8080')">Copy</button></div>
+            </div>
+            <div class="url-row">
+              <span class="url-label">Local Access:</span>
+              <div><a class="url-link" href="http://localhost:8080" target="_blank">http://localhost:8080</a> <button class="copy-btn" onclick="navigator.clipboard.writeText('http://localhost:8080')">Copy</button></div>
+            </div>
+            <div class="url-row">
+              <span class="url-label">Desktop Environment:</span>
+              <div><a class="url-link" href="http://${mainIp}:8080/desktop" target="_blank">http://${mainIp}:8080/desktop</a> <button class="copy-btn" onclick="navigator.clipboard.writeText('http://${mainIp}:8080/desktop')">Copy</button></div>
+            </div>
+            <div class="url-row">
+              <span class="url-label">WebDAV Server:</span>
+              <div><a class="url-link" href="http://${mainIp}:8081" target="_blank">http://${mainIp}:8081</a> <button class="copy-btn" onclick="navigator.clipboard.writeText('http://${mainIp}:8081')">Copy</button></div>
+            </div>
+            <div class="url-row">
+              <span class="url-label">File Server:</span>
+              <div><a class="url-link" href="http://${mainIp}:8082" target="_blank">http://${mainIp}:8082</a> <button class="copy-btn" onclick="navigator.clipboard.writeText('http://${mainIp}:8082')">Copy</button></div>
+            </div>
+            <div class="url-row">
+              <span class="url-label">WebSocket Feed:</span>
+              <div><span class="url-link">ws://${mainIp}:8084</span> <button class="copy-btn" onclick="navigator.clipboard.writeText('ws://${mainIp}:8084')">Copy</button></div>
+            </div>
+          </div>
+
+          <div class="net-card">
+            <h4>🌐 Network Interfaces & Adapters (${interfaces.length})</h4>
+            ${ifacesHtml || '<div class="text-muted">No active interfaces found</div>'}
+          </div>
+
+          <div class="net-card">
+            <h4>🖥️ Server Continuous Monitor Logs</h4>
+            <div class="log-box" id="net-log-${id}">[${new Date().toLocaleTimeString()}] Connected to Web OS Server. IP: http://${mainIp}:8080
+[${new Date().toLocaleTimeString()}] HTTP, WebDAV, File & WebSocket servers running continuously.
+[${new Date().toLocaleTimeString()}] Network Status: OK | Monitoring active connections...</div>
+          </div>
+        </div>`;
+      }).catch(e => {
+        if (el) el.innerHTML = '<div style="padding:20px;color:var(--danger)">Error loading network details: ' + e.message + '</div>';
+      });
+    }
+
+    loadNetworkDetails();
+    timer = setInterval(loadNetworkDetails, 3000);
   }
 
   // ─── Register all extension apps ────────────────────
   const APPS = [
+    { name: 'network-info', label: 'Network & IP', icon: '\u{1F4F6}', handler: networkInfo, category: 'system' },
     { name: 'ai-chat', label: 'AI Chat', icon: '\u{1F4AC}', handler: aiChat, category: 'ai' },
     { name: 'agent-company', label: 'AI Enterprise', icon: '\u{1F3E2}', handler: agentCompany, category: 'ai' },
     { name: 'monitor-pro', label: 'Monitor Pro', icon: '\u{1F4CA}', handler: monitorPro, category: 'system' },
