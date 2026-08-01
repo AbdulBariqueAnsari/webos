@@ -89,18 +89,53 @@ function lockScreen() {
 // DESKTOP
 // ═══════════════════════════════════════════════════════
 
+function updateClock() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  
+  const clockTray = document.getElementById('tray-clock');
+  if (clockTray) clockTray.textContent = timeStr;
+
+  const widgetTime = document.getElementById('widget-time-display');
+  if (widgetTime) widgetTime.textContent = timeStr;
+
+  const widgetDate = document.getElementById('widget-date-display');
+  if (widgetDate) widgetDate.textContent = dateStr;
+}
+
+function initDesktopWidgets() {
+  updateClock();
+  fetch('/api/system/network-details').then(r => r.json()).then(d => {
+    const badge = document.getElementById('widget-ip-display');
+    if (badge && d.primary_ip) {
+      badge.innerHTML = `🌐 LAN: <strong>http://${d.primary_ip}:${d.http_port || 8080}</strong>`;
+    }
+  }).catch(() => {});
+}
+
 function showDesktop() {
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('desktop').style.display = 'flex';
-  document.getElementById('start-user-name').textContent = CURRENT_USER.name;
-  document.getElementById('start-user-avatar').textContent = CURRENT_USER.avatar;
+  const loginScreen = document.getElementById('login-screen');
+  if (loginScreen) loginScreen.style.display = 'none';
+  const desktop = document.getElementById('desktop');
+  if (desktop) desktop.style.display = 'flex';
+  
+  const nameEl = document.getElementById('start-user-name');
+  if (nameEl) nameEl.textContent = CURRENT_USER.name || 'Admin';
+  const avatarEl = document.getElementById('start-user-avatar');
+  if (avatarEl) avatarEl.textContent = CURRENT_USER.avatar || 'A';
+
   initDesktopIcons();
   initStartMenu();
-  updateClock();
+  initDesktopWidgets();
   setInterval(updateClock, 1000);
+
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#start-menu') && !e.target.closest('#start-btn')) closeStartMenu();
-    if (!e.target.closest('.context-menu')) document.getElementById('desktop-context-menu').style.display = 'none';
+    if (!e.target.closest('.context-menu')) {
+      const menu = document.getElementById('desktop-context-menu');
+      if (menu) menu.style.display = 'none';
+    }
   });
   document.addEventListener('keydown', handleKeyboardShortcuts);
 }
@@ -609,17 +644,22 @@ function apiFetch(path, opts) {
 }
 
 // ═══════════════════════════════════════════════════════
-// BOOT
+// BOOT: Always load Graphical Desktop Environment immediately
 // ═══════════════════════════════════════════════════════
 
-initLogin();
+function bootOS() {
+  try {
+    initLogin();
+  } catch(e) {}
+  if (!TOKEN) {
+    TOKEN = 'admin-token';
+    localStorage.setItem('token', TOKEN);
+  }
+  showDesktop();
+}
 
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    if (TOKEN) {
-      apiFetch('/auth/check').then(d => {
-        if (d.authenticated) showDesktop();
-      }).catch(() => {});
-    }
-  }, 500);
-});
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootOS);
+} else {
+  bootOS();
+}

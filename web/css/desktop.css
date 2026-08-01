@@ -122,6 +122,45 @@ input, button, select, textarea { font-family: inherit; outline: none; }
   word-break: break-word; line-height: 1.2; max-width: 76px;
 }
 
+/* ─── DESKTOP WIDGETS ─────────────────── */
+#desktop-widgets {
+  position: absolute; top: 24px; right: 28px; z-index: 1;
+  display: flex; flex-direction: column; gap: 16px; align-items: flex-end;
+  pointer-events: none;
+}
+.widget {
+  background: rgba(18, 18, 42, 0.65);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px; padding: 20px 24px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  pointer-events: auto; text-align: right;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+.widget:hover {
+  transform: translateY(-2px);
+  border-color: rgba(124, 107, 255, 0.4);
+}
+.widget-time {
+  font-size: 2.8em; font-weight: 800; letter-spacing: -1px;
+  background: linear-gradient(135deg, #ffffff 0%, #a0a0c0 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  line-height: 1;
+}
+.widget-date {
+  font-size: 0.9em; color: var(--text2); margin-top: 4px; font-weight: 500;
+}
+.widget-ip-badge {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px;
+  padding: 6px 14px; border-radius: 20px;
+  background: rgba(0, 184, 148, 0.15); border: 1px solid rgba(0, 184, 148, 0.3);
+  color: #00b894; font-size: 0.8em; font-weight: 600; cursor: pointer;
+  transition: all 0.2s ease;
+}
+.widget-ip-badge:hover {
+  background: rgba(0, 184, 148, 0.3); transform: scale(1.03);
+}
+
 /* ─── CONTEXT MENU ────────────────────── */
 .context-menu {
   position: fixed; z-index: 10000; min-width: 200px;

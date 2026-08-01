@@ -180,5 +180,19 @@ def main():
 
 
 if __name__ == "__main__":
+    if "--cli" not in sys.argv and "DISPLAY" not in os.environ and os.name == "nt":
+        try:
+            import gui
+            gui.launch()
+            sys.exit(0)
+        except Exception as e:
+            print(f"  [INFO] GUI unavailable, starting CLI mode: {e}", flush=True)
+    elif "--gui" in sys.argv:
+        try:
+            import gui
+            gui.launch()
+            sys.exit(0)
+        except Exception as e:
+            print(f"  [ERROR] Failed to start GUI mode: {e}", flush=True)
     main()
 

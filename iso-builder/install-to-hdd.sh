@@ -373,6 +373,7 @@ install_bootloader() {
         grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id="WebOS" --recheck 2>/dev/null || true
         grub-mkconfig -o /boot/grub/grub.cfg 2>/dev/null || true
         systemctl enable webos.service 2>/dev/null || true
+        systemctl enable nodm 2>/dev/null || true
         systemctl enable NetworkManager 2>/dev/null || true
 CHROOT
 

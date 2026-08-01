@@ -1,10 +1,10 @@
 @echo off
-title Web OS v1.0 Ultimate
+title Web OS v1.0 Ultimate — Graphical Desktop Center
 set PYTHONUNBUFFERED=1
 set PYTHONIOENCODING=utf-8
 
 echo ==================================================
-echo    Starting Web OS v1.0 Ultimate Operating System
+echo    Starting Web OS v1.0 Ultimate GUI Center
 echo ==================================================
 echo.
 
@@ -17,10 +17,11 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [OK] Starting servers and detecting active network IPs...
+echo [OK] Launching Web OS Native GUI Window & Web Desktop...
 echo.
 
-python main.py
+python gui.py
 
 pause
+
 

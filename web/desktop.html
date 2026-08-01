@@ -27,6 +27,13 @@
 <div id="desktop" style="display:none">
   <div id="desktop-wallpaper"></div>
   <div id="desktop-icons"></div>
+  <div id="desktop-widgets">
+    <div class="widget widget-clock" id="widget-clock">
+      <div class="widget-time" id="widget-time-display">00:00</div>
+      <div class="widget-date" id="widget-date-display">Loading date...</div>
+      <div class="widget-ip-badge" id="widget-ip-display" onclick="launchApp('network-info')">🌐 Detecting Network IP...</div>
+    </div>
+  </div>
   <div id="desktop-context-menu" class="context-menu" style="display:none"></div>
 
   <div id="taskbar">

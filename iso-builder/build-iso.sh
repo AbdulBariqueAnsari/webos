@@ -101,13 +101,16 @@ SOURCES
         nano vim htop iotop iftop lsof net-tools iproute2 tmux screen \
         zip unzip gzip xz-utils bzip2 dosfstools rsync ntfs-3g \
         plymouth plymouth-themes cryptsetup lvm2 parted gdisk man-db less \
-        firefox-esr xdg-utils xorg openbox chromium xserver-xorg xinit x11-utils wmctrl xdotool \
+        firefox-esr xdg-utils xorg openbox chromium xserver-xorg xinit x11-utils x11-xserver-utils wmctrl xdotool \
+        nodm lightdm xserver-xorg-video-all xserver-xorg-video-fbdev xserver-xorg-video-vesa \
+        xserver-xorg-video-vmware xserver-xorg-video-qxl xserver-xorg-video-intel xserver-xorg-video-ati \
+        xserver-xorg-video-amdgpu xserver-xorg-video-nouveau xserver-xorg-legacy \
         mesa-utils fonts-dejavu-core fonts-liberation pulseaudio alsa-utils
 
     sudo mkdir -p "$rootfs/opt/web-os"
     sudo cp -r "$WEBOS_SRC"/* "$rootfs/opt/web-os/"
     sudo rm -rf "$rootfs/opt/web-os/iso-builder" "$rootfs/opt/web-os/dist" 2>/dev/null || true
-    ok "Base system created with all tools"
+    ok "Base system created with all video drivers and display manager"
 }
 
 install_python_packages() {
@@ -365,23 +368,49 @@ CONF
 
 configure_display() {
     local rootfs="$1"
-    info "Configuring graphical display (Xorg + Openbox + Chromium kiosk)..."
+    info "Configuring graphical display (Xorg + Openbox + Nodm Display Manager + Chromium kiosk)..."
 
-    # Create X11 config
+    # Configure Xwrapper permissions so Xorg runs without permission errors
+    sudo mkdir -p "$rootfs/etc/X11"
+    sudo tee "$rootfs/etc/X11/Xwrapper.config" > /dev/null << 'XWRAPPER'
+allowed_users=anybody
+needs_root_rights=yes
+XWRAPPER
+
+    # Configure nodm display manager for instant automatic graphical boot
+    sudo mkdir -p "$rootfs/etc/default"
+    sudo tee "$rootfs/etc/default/nodm" > /dev/null << 'NODM'
+NODM_ENABLED=true
+NODM_USER=root
+NODM_XSESSION=/root/.xsession
+NODM_MIN_SESSION_TIME=60
+NODM_X_OPTIONS="-nolisten tcp"
+NODM
+
+    # Create Master Xsession Script
     sudo mkdir -p "$rootfs/etc/X11/xinit"
-    sudo tee "$rootfs/etc/X11/xinit/xinitrc" > /dev/null << 'XINITRC'
+    sudo tee "$rootfs/root/.xsession" > /dev/null << 'XSESSION'
 #!/bin/bash
 # Web OS Kiosk Desktop — Auto-starts Chromium in fullscreen
 
 export DISPLAY=:0
 export XAUTHORITY=/root/.Xauthority
 
-# Disable screen blanking
+# Disable screen blanking & DPMS power saving
 xset s off -dpms 2>/dev/null || true
 xset s noblank 2>/dev/null || true
+xsetroot -solid "#0a0a1a" 2>/dev/null || true
 
 # Start background helper script
 /usr/share/webos/kiosk-start.sh &
+
+# Wait for Web OS HTTP server to be responsive on port 8080
+for i in {1..30}; do
+    if curl -s http://localhost:8080 >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
 
 # Start Chromium kiosk in background
 chromium \
@@ -398,18 +427,19 @@ chromium \
     --disable-default-apps \
     --disable-extensions \
     --disable-translate \
-    --disable-features=ChromeWhatsNewUI \
-    --disable-features=PrivacySandboxSettings \
-    --disable-features=MediaRouter \
     --no-default-browser-check \
-    --check-for-update-interval=31536000 \
     --user-data-dir=/root/.webos-chromium \
     http://localhost:8080/desktop &
 
 # Foreground window manager keeping X session alive
 exec openbox --config-file /etc/xdg/openbox/rc.xml
-XINITRC
-    sudo chmod +x "$rootfs/etc/X11/xinit/xinitrc"
+XSESSION
+
+    sudo chmod +x "$rootfs/root/.xsession"
+    sudo cp "$rootfs/root/.xsession" "$rootfs/etc/X11/xinit/xinitrc"
+    sudo cp "$rootfs/root/.xsession" "$rootfs/root/.xinitrc"
+    sudo cp "$rootfs/root/.xsession" "$rootfs/etc/X11/Xsession"
+    sudo chmod +x "$rootfs/etc/X11/xinit/xinitrc" "$rootfs/root/.xinitrc" "$rootfs/etc/X11/Xsession"
 
     # Create kiosk startup script
     sudo mkdir -p "$rootfs/usr/share/webos"
@@ -455,17 +485,15 @@ KIOSK
 </openbox_config>
 OPENBOX
 
-    # Add startx to root's bash profile for auto-start on tty1
+    # Enable nodm service inside chroot
+    sudo chroot "$rootfs" systemctl enable nodm 2>/dev/null || true
+
+    # Add startx fallback to root's bash profile for manual console login
     sudo tee "$rootfs/root/.bash_profile" > /dev/null << 'BASHPROFILE'
 #!/bin/bash
-# Auto-start X11 desktop on tty1
+# Auto-start X11 desktop if logged into console
 if [[ -z "$DISPLAY" && "$(tty)" =~ /dev/tty1 ]]; then
-    clear
-    echo ""
-    echo "  Starting Web OS Desktop..."
-    echo "  (Press Ctrl+Alt+F2 for console)"
-    sleep 1
-    exec startx -- :0 vt1
+    exec startx /root/.xsession -- :0 vt1
 fi
 BASHPROFILE
 
@@ -481,10 +509,7 @@ Type=Application
 Categories=Network;WebBrowser;
 DESKTOP
 
-    # Enable display manager auto-start (just use xinit on tty1)
-    # This is already handled by .bash_profile + getty autologin
-
-    ok "Graphical display configured (Xorg + Openbox + Chromium kiosk)"
+    ok "Graphical display configured with Nodm display manager & DRM drivers"
 }
 
 create_grub_config() {
